@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Gastrulation de Xenopus laevis – modèle 3D</title>
+<style>
+:root{--bg:#eef2f5;--fg:#14202c;--pn:#fffffff0;--ac:#0b6b7c;--bd:#c5d0da;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d141b;--fg:#e6edf3;--pn:#16202af0;--ac:#56d3c4;--bd:#2b3945}}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px/1.35 system-ui,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%}
+#cv{flex:1;position:relative;min-height:0;touch-action:none}
+#cv canvas{display:block;width:100%;height:100%}
+#ln{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;color:var(--ac)}
+#lab{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lb{position:absolute;pointer-events:auto;background:var(--pn);border:1px solid var(--ac);border-radius:6px;padding:4px 8px;font-weight:600;font-size:12px;white-space:nowrap;transform:translate(-50%,-50%)}
+.ov{position:absolute;background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.4;max-width:560px}
+#pn{background:var(--pn);padding:5px 8px;border-top:1px solid var(--bd)}
+.r{display:flex;gap:5px;align-items:center;margin:3px 0;flex-wrap:wrap}.sc{flex-wrap:nowrap;overflow-x:auto}
+button{font:inherit;font-size:13px;min-height:34px;padding:2px 10px;border:1px solid var(--bd);border-radius:8px;background:transparent;color:var(--fg);white-space:nowrap}
+button.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+input[type=range]{flex:1;min-width:80px}
+.d{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+</style></head><body><div id="app"><div id="cv"><svg id="ln"></svg><div id="lab"></div>
+<div class="ov" id="st" style="top:6px;left:6px;right:6px;max-height:32%;overflow:auto"><b id="sh"></b> <button id="sx" style="min-height:24px">▾</button><div id="sb"></div></div>
+<div class="ov" id="cd" style="display:none;left:6px;bottom:6px;max-width:62%;max-height:40%;overflow:auto"></div>
+<div class="ov" id="lg" style="display:none;right:6px;bottom:150px;max-width:46%;font-size:11px"></div><div class="ov" id="mp" style="right:6px;bottom:6px;padding:4px"><svg viewBox="0 0 120 132" width="112" style="color:var(--fg);display:block"><defs><clipPath id="cc"><circle cx="60" cy="58" r="50"/></clipPath></defs><g clip-path="url(#cc)"><rect width="120" height="132" fill="#f0c030"/><rect width="120" height="33" fill="#4a8fd9"/><rect y="33" width="60" height="30" fill="#e8667a"/><rect x="60" y="33" width="60" height="30" fill="#d6322d"/><circle cx="100" cy="58" r="7" fill="#f08a24"/><ellipse cx="60" cy="34" rx="22" ry="10" fill="#cfe9ff"/></g><circle cx="60" cy="58" r="50" fill="none" stroke="currentColor" stroke-width="1.5"/><g font-size="8" text-anchor="middle" font-family="system-ui,sans-serif"><text x="60" y="20" fill="#fff">Ectoderme</text><text x="60" y="37" fill="#134" font-size="6.5">Blastocœle</text><text x="60" y="55" fill="#fff">Mésoderme</text><text x="60" y="95" fill="#432">Endoderme</text><text x="98" y="73" fill="currentColor" font-size="6">préchordal</text><text x="8" y="61" fill="currentColor">V</text><text x="113" y="61" fill="currentColor">D</text><text x="60" y="122" fill="currentColor" font-size="7.5">Carte des tissus</text><text x="60" y="130" fill="currentColor" font-size="6">coupe sagittale schématique</text></g></svg></div>
+<div class="ov" id="rf" style="display:none;inset:6px;max-width:none;overflow:auto;z-index:5"></div></div>
+<div id="pn"><div class="r"><button id="hd">Contrôles ▾</button><input id="sl" type="range" min="0" max="240" step=".1" value="0"><span id="tm">0:00</span></div>
+<div class="r"><button id="rs">⏮</button><button id="m5">−5 s</button><button id="pp">⏸</button><button id="p5">+5 s</button><span id="sp" class="r" style="margin:0"></span></div>
+<div id="xt"><div class="r sc" id="stg"></div><div class="r sc" id="md"></div>
+<div class="r"><button id="tL" class="on">Légendes</button><button id="tJ">Jonctions</button><button id="tC">Coupe</button><button id="tT">Trajectoires</button><button id="tX" class="on">Voir l’intérieur</button><button id="tR">Réf. et limites</button><input id="cs" type="range" min="-.8" max=".8" step=".02" value=".05" style="display:none"></div></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),PI=Math.PI,TAU=PI*2,DUR=240,ST=[0,25,55,100,135,175,205,230];
+const cl=(x,a=0,b=1)=>Math.min(b,Math.max(a,x)),sm=x=>{x=cl(x);return x*x*(3-2*x)};
+const V=(x,y,z)=>new THREE.Vector3(x,y,z),S=(th,ph,r=1)=>V(r*Math.sin(th)*Math.sin(ph),r*Math.cos(th),r*Math.sin(th)*Math.cos(ph));
+const TE=1.309,TL=1.83,W=TL-TE; // limite ectoderme (75°) et lèvre initiale (105°)
+/* ---------- cellules ---------- */
+const C=[];
+function ring(r,a,b,sz,L,sn){const dt=.88*sz/r;let k=0;for(let th=a+dt/2;th<b;th+=dt,k++){const n=Math.max(1,Math.round(TAU*r*Math.sin(th)/sz));for(let i=0;i<n;i++)C.push({th,ph:((i+(k%2)*.5)/n)*TAU-PI,r,sz,sn,L,k:th<TE?'e':th<TL?'m':'v',d0:TL-th})}}
+ring(.96,0,TL,.11,0,.048);ring(.86,0,TL,.11,1,.048);ring(.92,TL,PI,.22,2,.095);
+for(let x=-.7;x<=.71;x+=.22)for(let y=-.7;y<=.12;y+=.22)for(let z=-.7;z<=.71;z+=.22){const p=V(x,y,z);if(p.length()<.7&&p.distanceTo(V(0,.14,0))>.74)C.push({k:'c',p,sz:.22,sn:.105,L:3})}
+const n=C.length;
+/* ---------- cinématique (modèle schématique) ---------- */
+const KK={t:-1},tv=V(0,0,0);
+const Ifn=(ph,t)=>{const T0=32+30*(1-Math.cos(ph));return(.45+.425*(1+Math.cos(ph)))*sm((t-T0)/(215-T0))};
+function K(t){if(KK.t===t)return;KK.t=t;KK.thL=TL+(2.85-TL)*sm((t-70)/155);KK.ce=sm((t-105)/85);KK.g=sm((t-30)/200);KK.b=sm((t-26)/32);KK.bw=.45+.9*sm((t-45)/120);KK.str=1+.5*KK.g+.3*KK.ce;KK.Id=Ifn(0,t);KK.ax=[];if(KK.Id>.04){const tp=KK.thL-KK.Id*KK.str;for(let j=0;j<7;j++)KK.ax.push(S(KK.thL+(tp-KK.thL)*j/6,0,.52));KK.rho=.1+.1*KK.g}}
+function st(c,t,o){K(t);
+ if(c.k=='c'){o.p.copy(c.p);for(const a of KK.ax){const d=o.p.distanceTo(a),m=KK.rho+.13;if(d<m&&d>1e-4)o.p.addScaledVector(tv.copy(o.p).sub(a),(m-d)/d)}o.a.set(1,0,0);o.n.set(0,1,0);o.u.set(0,0,1);o.sa=o.sb=o.sn=.115;return}
+ let th=c.th,ph=c.ph,r=c.r,sa=c.sz*.53,sb=sa,sn=c.sn;
+ if(c.k=='e'){const k=(KK.thL-Math.max(0,W-Ifn(ph,t)))/TE;th=c.th*k;const s=cl(Math.sqrt(k*Math.sin(th)/Math.max(Math.sin(c.th),.1)),1,1.7);sa*=s;sb*=s;sn*=Math.max(.55,1/(s*s))} // épibolie
+ else if(c.k=='m'){const lam=Ifn(c.ph,t)-c.d0,dw=cl((1.2-Math.abs(c.ph))/.8);
+  if(lam<=0)th=KK.thL+lam;else{const w=cl(lam/.25);th=Math.max(.35,KK.thL-lam*KK.str+.1*Math.sin(PI*w));r=c.r+((c.L?.75:.64)-c.r)*sm(w)} // involution
+  ph=c.ph*(1-.5*KK.ce*dw);sa*=1-.25*KK.ce*dw;sb*=1+.5*KK.ce*dw; // convergence-extension
+  if(c.L==0&&c.d0<.14&&Math.abs(c.ph)<KK.bw){const bb=KK.b*(lam<.2?1:cl(1-(lam-.2)/.2));sa*=1-.55*bb;sb*=1-.5*bb;sn*=1+1.7*bb;r-=.07*bb}} // cellules en bouteille
+ else{const f=(PI-KK.thL)/(PI-TL);th=KK.thL+(c.th-TL)*f;r-=.1*(1-f);sa*=.5+.5*f;sb*=.5+.5*f} // bouchon vitellin
+ th=cl(th,.04,PI-.04);const sT=Math.sin(th),cT=Math.cos(th),sP=Math.sin(ph),cP=Math.cos(ph);
+ o.p.set(r*sT*sP,r*cT,r*sT*cP);o.a.set(cT*sP,-sT,cT*cP);o.u.set(cP,0,-sP);o.n.set(sT*sP,cT,sT*cP);o.sa=sa;o.sb=sb;o.sn=sn}
+/* ---------- scène ---------- */
+const cv=$('#cv'),R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.localClippingEnabled=true;cv.prepend(R.domElement);
+const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(38,1,.02,50),cp=new THREE.Plane(V(-1,0,0),9),CP=[cp];
+sc.add(new THREE.HemisphereLight(0xffffff,0x667788,1.15));const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(2,3,4);sc.add(dl);
+const G=new THREE.SphereGeometry(1,10,8),
+ mem=new THREE.InstancedMesh(G,new THREE.MeshStandardMaterial({transparent:true,opacity:.8,roughness:.5,clippingPlanes:CP}),n),
+ out=new THREE.InstancedMesh(G,new THREE.MeshBasicMaterial({color:0x22160c,side:THREE.BackSide,transparent:true,clippingPlanes:CP}),n),
+ nuc=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6),new THREE.MeshStandardMaterial({color:0x40306e,roughness:.7,clippingPlanes:CP}),n);
+[mem,out,nuc].forEach(m=>{m.frustumCulled=false;sc.add(m)});
+const tr=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,depthWrite:false,clippingPlanes:CP}),
+ bl=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),tr(0x7fc8ff,.2)),ar=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),tr(0x2fe0c0,.32)),
+ fn=new THREE.Mesh(new THREE.SphereGeometry(.8,24,8,0,TAU,0,1.9),new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.5,clippingPlanes:CP}));
+fn.visible=false;sc.add(bl,ar,fn);
+const o={p:V(0,0,0),a:V(0,0,0),u:V(0,0,0),n:V(0,0,0)},M=new THREE.Matrix4(),X=V(0,0,0),Y=V(0,0,0),Z=V(0,0,0),pos=new Float32Array(n*3);
+/* couleurs */
+const cA=new THREE.Color(0x6a4528),cB=new THREE.Color(0xe9dcae),TC={e:0x4a8fd9,pre:0xf08a24,cho:0xd6322d,lat:0xe8667a,end:0xf0c030,lin:0xd9a441};
+function colr(c,mode){const q=new THREE.Color();if(mode){if(c.k=='e')q.set(TC.e);else if(c.k=='m'){if(c.L==0)q.set(TC.lin);else if(Math.abs(c.ph)<.55)q.set(c.d0<.2?TC.pre:TC.cho);else q.set(TC.lat)}else q.set(TC.end);return q}
+ q.copy(cA).lerp(cB,c.k=='c'?1:cl((c.th-.9)/1.4));if(c.L==1)q.lerp(new THREE.Color(0xffffff),.15);return q}
+const recolor=()=>{C.forEach((c,i)=>mem.setColorAt(i,colr(c,col)));mem.instanceColor.needsUpdate=true};
+/* trajectoires */
+const TR=new THREE.Group(),tracks=[],ad=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));TR.visible=false;sc.add(TR);
+const pick=f=>{let b=null,bd=9;for(const c of C)if(c.k!='c'){const d=f(c);if(d<bd){bd=d;b=c}}return b};
+[[0,.05],[0,.3],[.7,.05],[-.7,.3],[1.5,.1],[-1.5,.3],[PI,.1]].forEach(([p,d])=>tracks.push([pick(c=>c.k=='m'&&c.L==1?ad(c.ph,p)+Math.abs(c.d0-d):9),0xd6322d]));
+[[0,.5],[0,1.1],[PI,.8]].forEach(([p,t])=>tracks.push([pick(c=>c.k=='e'&&c.L==1?ad(c.ph,p)+Math.abs(c.th-t):9),0x4a8fd9]));
+tracks.forEach(T=>{T.pts=[];for(let t=0;t<=DUR;t+=4){st(T[0],t,o);T.pts.push(o.p.clone())}TR.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(T.pts),new THREE.LineBasicMaterial({color:T[1],clippingPlanes:CP})))});
+const cg=new THREE.ConeGeometry(.03,.1,8).rotateX(PI/2),cones=new THREE.InstancedMesh(cg,new THREE.MeshBasicMaterial({color:0xffffff,clippingPlanes:CP}),tracks.length);TR.add(cones);
+/* jonctions : paires de voisines à t=0 */
+const P0=C.map(c=>{st(c,0,o);return o.p.clone()}),J=[],rr=c=>c.k=='c'?.11:c.sz/2,JC=[0xffd43b,0xe03131,0x2fbf71,0x3b82f6];
+for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const a=C[i],b=C[j];if(J.length<6000&&P0[i].distanceTo(P0[j])<1.15*(rr(a)+rr(b))){if(a.L==0&&b.L==0)J.push([i,j,0,.025],[i,j,1,-.01]);else if(a.L<2&&b.L<2&&(i+j)%3==0)J.push([i,j,2,0]);else J.push([i,j,3,0])}}
+const jm=new THREE.InstancedMesh(new THREE.SphereGeometry(.017,6,4),new THREE.MeshBasicMaterial({clippingPlanes:CP}),J.length);J.forEach((q,i)=>jm.setColorAt(i,new THREE.Color(JC[q[2]])));jm.visible=false;jm.frustumCulled=false;sc.add(jm);
+/* ---------- textes ---------- */
+const SN=['Blastula','Lèvre dorsale','Involution','Épibolie','Convergence-ext.','Archentéron','Fermeture','Fin'];
+const TX=[
+['Étape 1 – Embryon avant gastrulation (blastula âgée)','Hémisphère animal : petites cellules pigmentées (blastoderme) formant le toit du blastocœle. Hémisphère végétatif : grosses cellules riches en vitellus (plancher). La zone marginale, intermédiaire, contient le mésoderme présomptif ; l’ectoderme est animal, l’endoderme végétatif.'],
+['Étape 2 – Lèvre dorsale du blastopore','Côté dorsal, des cellules superficielles de la zone marginale deviennent « en bouteille » : pôle apical constricté, partie basale allongée. Elles courbent l’épithélium (invagination initiale) et marquent la lèvre dorsale. Leur rôle exact est discuté : elles initient la courbure plutôt que de la causer seules (Hardin et Keller, 1988).'],
+['Étape 3 – Involution','Involution : mouvement vers l’intérieur d’une couche externe qui s’étend sur la face interne des cellules restées à l’extérieur. Les cellules proches de la lèvre entrent d’abord (mésoderme préchordal), puis la chorde, et migrent sous le toit du blastocœle sur la fibronectine (intégrines). Expérience de Boucaut (1984) : sans matrice, les cellules évitent la zone.'],
+['Étape 4 – Épibolie de l’ectoderme','Épibolie : les feuillets d’épithélium s’étendent en bloc pour entourer les couches profondes. L’ectoderme animal s’amincit et s’étale (intercalation radiale), le blastocœle se réduit. Les divisions cellulaires ne sont pas représentées.'],
+['Étape 5 – Convergence-extension','Les cellules du mésoderme dorsal s’allongent médiolatéralement et s’intercalent entre elles : le tissu converge vers l’axe dorsal (étroitesse) et s’allonge selon l’axe antéro-postérieur (Keller et Danilchik, 1988).'],
+['Étape 6 – Formation de l’archentéron','L’archentéron (futur tube digestif) apparaît entre le toit mésodermique involué et l’endoderme vitellin ; il s’allonge tandis que le blastocœle, refoulé, diminue. Son revêtement dorsal inclut des cellules superficielles de la zone marginale (représentation schématique).'],
+['Étape 7 – Fermeture du blastopore','La lèvre dorsale est suivie des lèvres latérales puis ventrale : le blastopore se referme en cercle autour du bouchon vitellin (cellules endodermiques), qui s’internalise.'],
+['Étape 8 – Fin de gastrulation','Trois feuillets : ectoderme externe ; mésoderme (chorde, mésoderme préchordal, latéral, ventral) ; endoderme (revêtement de l’archentéron, cellules vitellines). Axes antéro-postérieur et dorso-ventral en place ; suite : neurulation. Utiliser « Coupe » pour les structures internes.']];
+const A=(th,ph,r)=>()=>S(th,ph,r),LP=(d,ph,r)=>()=>S(KK.thL+d,ph,r),TP=(f,ph,r)=>()=>S(KK.thL-KK.Id*KK.str*f,ph,r),BL=()=>bl.position.clone();
+const LS=[
+['Pôle animal',0,100,A(0,0,1),0],['Pôle végétatif',0,240,A(PI,0,1),0],
+['Hémisphère animal (petites cellules)',0,55,A(.8,-1,.97),0],['Hémisphère végétatif (grosses cellules)',0,100,A(2.5,1.7,.95),0],
+['Zone marginale',0,100,A(1.57,-1.3,.97),0,'Région intermédiaire entre les hémisphères animal et végétatif.|Cellules équatoriales du blastoderme.|Siège de l’induction du mésoderme ; la lèvre s’y forme.|Mésoderme (cellules profondes).'],
+['Blastoderme',0,55,A(.35,2.4,.97),0],['Blastocœle',0,175,BL,1,'Cavité de la blastula, décalée vers l’animal.|Écartement des cellules animales lors de la segmentation.|Espace de migration des cellules involuées sous son toit.|Réduit puis refoulé par l’archentéron.'],
+['Blastocœle résiduel',175,240,BL,1],['Plaque de toit du blastocœle',0,60,A(.45,.3,.8),1],['Plaque de plancher du blastocœle',0,60,()=>V(0,-.5,.1),1],
+['Lèvre dorsale du blastopore',25,135,LP(0,-.25,.97),0,'Sillon où commence l’involution, côté dorsal.|Cellules en bouteille de la zone marginale dorsale.|Point d’entrée du mésoderme dans l’embryon.|S’étend en lèvres latérales puis ventrale.'],
+['Cellules en bouteille (constriction apicale)',25,100,LP(-.06,.3,.99),0,'Cellules épithéliales à pôle apical constricté et base allongée.|Cellules superficielles de la zone marginale dorsale.|Courbent l’épithélium : invagination initiale.|Restent au bord de la lèvre ; puis intégrées.'],
+['Zone dorsale',25,60,A(.9,0,1),0],['Invagination initiale',25,60,LP(.05,0,.9),1],
+['Involution',55,175,LP(0,.45,.97),0,'Enroulement vers l’intérieur de la zone marginale par la lèvre.|Zone marginale involutive (cellules proches de la lèvre d’abord).|Met en place mésoderme et endoderme à l’intérieur.|Formation du toit mésodermique de l’archentéron.'],
+['Mésoderme présomptif',55,100,A(1.5,.9,.97),0],['Endoderme présomptif',55,100,A(2.4,-.5,.95),0],['Cellules involutives',55,135,TP(.15,0,.75),1],
+['Mésoderme préchordal',70,240,TP(1,0,.72),1,'Mésoderme dorsal antérieur, bord avant de l’involution.|Cellules dorsales les plus proches de la lèvre.|Migre en tête sous le toit du blastocœle.|Mésoderme de la région antérieure (tête).'],
+['Chorde présomptive',90,240,TP(.45,0,.74),1,'Mésoderme dorsal axial derrière le préchordal.|Cellules dorsales involuées après le préchordal.|Subit convergence-extension et allonge l’axe.|Chorde dorsale, axe de l’embryon.'],
+['Épibolie',100,235,A(1,1.9,.97),0,'Étalement de l’ectoderme pour recouvrir l’embryon.|Ectoderme animal.|Entraîne la lèvre vers le pôle végétatif.|Ectoderme couvrant tout sauf le bouchon.'],
+['Ectoderme (présomptif)',100,240,A(.5,-.7,.97),0,'Feuillet externe.|Cellules animales du blastoderme.|S’étale par épibolie.|Épiderme et système nerveux.'],
+['Convergence-extension',135,205,TP(.6,.5,.74),1,'Rétrécissement et allongement d’un tissu par intercalation.|Mésoderme dorsal.|Allonge l’axe antéro-postérieur et pousse l’embryon.|Chorde et somites allongés.'],
+['Intercalation médiolatérale',135,205,TP(.3,-.45,.75),1],
+['Archentéron',175,240,()=>S(KK.thL-KK.Id*KK.str*.5,0,.52),1,'Cavité interne ouverte par le blastopore.|Entre toit mésodermique involué et endoderme.|Futur lumen digestif ; son toit s’allonge.|Tube digestif.'],
+['Blastopore et lèvre blastoporale',175,240,LP(0,-.5,.98),0],
+['Bouchon vitellin',175,240,()=>S(Math.min(KK.thL+.12,PI-.1),.6,.97),0,'Cellules endodermiques vitellines visibles dans le blastopore.|Cellules végétatives.|Reste exposé tant que le blastopore n’est pas fermé.|Internalisé dans l’endoderme.'],
+['Lèvre ventrale',205,240,LP(0,PI,.98),0],['Lèvres latérales',205,240,LP(0,1.57,.98),0],
+['Mésoderme',230,240,TP(.7,.9,.75),1,'Feuillet intermédiaire.|Zone marginale involuée.|Forme le toit de l’archentéron.|Chorde, somites, reins, cœur…'],
+['Endoderme',230,240,()=>V(0,-.3,-.2),1,'Feuillet interne.|Cellules végétatives et revêtement.|Tapisse l’archentéron.|Tube digestif et dérivés.'],
+['Région dorsale',230,240,A(1.2,0,1),0],['Région ventrale',230,240,A(1.2,PI,1),0],['Axe antéro-postérieur',230,240,TP(.9,.3,.74),1],['Axe dorso-ventral',230,240,A(1.6,0.6,1),0]];
+const LB=LS.map(l=>{const e=document.createElement('div');e.className='lb';e.textContent=l[0];e.onpointerdown=ev=>ev.stopPropagation();const q={nm:l[0],t0:l[1],t1:l[2],f:l[3],in:l[4],i:l[5],e};e.onclick=()=>card(q);$('#lab').appendChild(e);return q});
+function card(l){const d=l.i&&l.i.split('|'),c=$('#cd');c.style.display='block';c.innerHTML='<b>'+l.nm+'</b> <button id="cx" style="min-height:24px">✕</button>'+(d?'<br><b>Définition :</b> '+d[0]+'<br><b>Origine :</b> '+d[1]+'<br><b>Rôle :</b> '+d[2]+'<br><b>Devenir :</b> '+d[3]:'<br>Voir la description de l’étape.');$('#cx').onclick=()=>c.style.display='none'}
+$('#rf').innerHTML='<button id="rx">✕ Fermer</button><p><b>Limites du modèle.</b> Représentation schématique et pédagogique : positions, vitesses et nombres de cellules ne sont pas à l’échelle ; divisions cellulaires, mouvements de la rotation végétative et détails du revêtement de l’archentéron simplifiés. Coupe transversale = plan perpendiculaire à l’axe animal-végétatif. Les mécanismes variables selon les tissus sont indiqués comme discutés.</p><p><b>Bibliographie</b></p><ul><li>Gilbert S.F., <i>Developmental Biology</i>, Sinauer (6e éd. et suiv.).</li><li>Wolpert L. et al., <i>Principles of Development</i>, Oxford Univ. Press.</li><li>Vogt W. (1929) Roux’s Arch. Entw. Mech. 120:384-706 (marquages vitaux).</li><li>Keller R.E. (1980) J. Embryol. Exp. Morphol. 60:201-234 (épibolie).</li><li>Keller R., Danilchik M. (1988) Development 103:193-209 (convergence-extension).</li><li>Hardin J., Keller R. (1988) Development 103:211-230 (cellules en bouteille).</li><li>Boucaut J.C. et al. (1984) J. Cell Biol. 99:1822-1830 (fibronectine et gastrulation).</li><li>Winklbauer R., Keller R. (1996) Dev. Biol. 177:413-426 (migration du mésoderme).</li><li>Nieuwkoop P.D., Faber J., <i>Normal Table of Xenopus laevis</i>.</li><li>Guénal I., LSBi326 Biologie du développement, UVSQ, 2026-2027.</li></ul>';
+$('#rx').onclick=()=>$('#rf').style.display='none';
+/* ---------- état et interface ---------- */
+let xr=true,t=0,play=true,spd=1,mode=0,cutM=0,cs=.05,trOn=false,jOn=false,col=0,simple=false,labOn=true,zm=1,az=.3,el=.25,si=-1;const tg=V(0,0,0);
+const MD=['Externe 3D','Coupe sagittale','Coupe transversale','Cellulaire rapprochée','Trajectoires','Territoires','Simplifiée'];
+const mk=(p,txt,f,cls)=>{const b=document.createElement('button');b.textContent=txt;b.onclick=f;p.appendChild(b);return b};
+const sb=[],mb=[],vb=[];SN.forEach((s,i)=>sb.push(mk($('#stg'),(i+1)+'. '+s,()=>{t=ST[i]+.01;sync()})));MD.forEach((s,i)=>mb.push(mk($('#md'),s,()=>setMode(i))));[.25,.5,1,2].forEach(v=>vb.push(mk($('#sp'),'×'+String(v).replace('.',','),()=>{spd=v;ui()})));
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+function ui(){$('#pp').textContent=play?'⏸':'▶';mb.forEach((b,i)=>b.classList.toggle('on',i==mode));vb.forEach((b,i)=>b.classList.toggle('on',[.25,.5,1,2][i]==spd));
+ $('#tL').classList.toggle('on',labOn);$('#tJ').classList.toggle('on',jOn);$('#tC').classList.toggle('on',cutM>0);$('#tT').classList.toggle('on',trOn);$('#cs').style.display=cutM?'':'none';
+ let g='';if(jOn)g+='<div><span class="d" style="background:#ffd43b"></span>Jonction serrée (ZO-1…) : couche superficielle</div><div><span class="d" style="background:#e03131"></span>Jonction d’adhérence (cadhérines + caténines) : couche superficielle</div><div><span class="d" style="background:#3b82f6"></span>Cadhérine C (adhérence homophile Ca²⁺, caténines) : cellules profondes et végétatives ; E-cadhérine plutôt ectodermique</div><div><span class="d" style="background:#2fbf71"></span>Jonction communicante (connexines, &lt; 1 500 Da) : cellules profondes</div><div>Maille blanche : fibronectine du toit du blastocœle, liée aux intégrines du mésoderme migrant</div>';
+ if(0)g+='<div><span class="d" style="background:#4a8fd9"></span>Ectoderme</div><div><span class="d" style="background:#f08a24"></span>Mésoderme préchordal</div><div><span class="d" style="background:#d6322d"></span>Chorde</div><div><span class="d" style="background:#e8667a"></span>Mésoderme latéral/ventral</div><div><span class="d" style="background:#d9a441"></span>Couche superficielle marginale (revêtement, schématique)</div><div><span class="d" style="background:#f0c030"></span>Endoderme</div>';
+ $('#lg').style.display=g?'block':'none';$('#lg').innerHTML=g;mem.material.opacity=simple?1:xr?.28:.8;out.material.opacity=xr?.3:1;mem.material.depthWrite=out.material.depthWrite=!xr;$('#tX').classList.toggle('on',xr);nuc.visible=out.visible=!simple;fn.visible=jOn;jm.visible=jOn;TR.visible=trOn}
+function setMode(i){mode=i;cutM=i==1?1:i==2?2:0;trOn=i==4;jOn=i==3;col=1;simple=i==6;tg.set(0,0,0);zm=i==3?.3:1;az=i==1?PI/2:.3;el=i==2?.95:i==1?.1:.25;cs=i==1?.02:.05;$('#cs').value=cs;recolor();ui()}
+function sync(){$('#sl').value=t}
+$('#pp').onclick=()=>{play=!play;if(play&&t>=DUR)t=0;ui()};$('#rs').onclick=()=>{t=0;sync()};$('#m5').onclick=()=>{t=Math.max(0,t-5);sync()};$('#p5').onclick=()=>{t=Math.min(DUR,t+5);sync()};
+$('#sl').oninput=e=>{t=+e.target.value};$('#cs').oninput=e=>{cs=+e.target.value};
+$('#tL').onclick=()=>{labOn=!labOn;ui()};$('#tJ').onclick=()=>{jOn=!jOn;ui()};$('#tC').onclick=()=>{cutM?setMode(0):setMode(1)};$('#tT').onclick=()=>{trOn=!trOn;ui()};$('#tX').onclick=()=>{xr=!xr;ui()};$('#tR').onclick=()=>{$('#rf').style.display='block'};
+$('#hd').onclick=()=>{const x=$('#xt');x.style.display=x.style.display=='none'?'':'none'};$('#sx').onclick=()=>{const b=$('#sb');b.style.display=b.style.display=='none'?'':'none'};
+/* caméra tactile : 1 doigt = rotation, 2 doigts = zoom + déplacement */
+const P=new Map();let ld=0;
+cv.onpointerdown=e=>{P.set(e.pointerId,[e.clientX,e.clientY]);cv.setPointerCapture(e.pointerId);ld=0};
+cv.onpointermove=e=>{const q=P.get(e.pointerId);if(!q)return;const dx=e.clientX-q[0],dy=e.clientY-q[1];P.set(e.pointerId,[e.clientX,e.clientY]);
+ if(P.size==1){az-=dx*.008;el=cl(el+dy*.008,-1.45,1.45)}else{const v=[...P.values()],d=Math.hypot(v[0][0]-v[1][0],v[0][1]-v[1][1]);if(ld)zm=cl(zm*ld/d,.2,2.5);ld=d;const s=zm*.0022;cam.updateMatrixWorld();X.setFromMatrixColumn(cam.matrixWorld,0);Y.setFromMatrixColumn(cam.matrixWorld,1);tg.addScaledVector(X,-dx*s/2).addScaledVector(Y,dy*s/2)}};
+cv.onpointerup=cv.onpointercancel=e=>{P.delete(e.pointerId);ld=0};cv.onwheel=e=>{e.preventDefault();zm=cl(zm*(1+e.deltaY*.001),.2,2.5)};
+new ResizeObserver(()=>{const w=cv.clientWidth,h=cv.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}).observe(cv);
+/* ---------- boucle ---------- */
+const dm=new THREE.Object3D();let last=performance.now();
+function labels(){const w_=cv.clientWidth,h_=cv.clientHeight,placed=[],cd=cam.position.clone().normalize();let s='';
+ for(const l of LB){let ap,vis=labOn&&t>=l.t0&&t<=l.t1;if(vis){ap=l.f();vis=(!l.in||cutM>0)&&!(cutM==1&&ap.x>cs)&&!(cutM==2&&ap.y>cs)&&(l.in||ap.clone().normalize().dot(cd)>.12)}
+  l.e.style.display=vis?'':'none';if(!vis)continue;const v=ap.clone().project(cam),x=(v.x+1)/2*w_,y=(1-v.y)/2*h_,w=l.nm.length*6.6+16,sd=x<w_/2?-1:1;
+  let lx=cl(x+sd*(w/2+34),w/2+4,w_-w/2-4),ly=cl(y-14,16,h_-16);for(let k=0;k<40&&placed.some(p=>Math.abs(p[1]-ly)<26&&Math.abs(p[0]-lx)<(p[2]+w)/2);k++)ly+=26;ly=Math.min(ly,h_-16);
+  placed.push([lx,ly,w]);l.e.style.left=lx+'px';l.e.style.top=ly+'px';s+='<line x1="'+x+'" y1="'+y+'" x2="'+lx+'" y2="'+ly+'" stroke="currentColor" stroke-width="1.3" opacity=".85"/><circle cx="'+x+'" cy="'+y+'" r="3" fill="currentColor"/>'}
+ $('#ln').innerHTML=s}
+function frame(now){requestAnimationFrame(frame);const dt=Math.min(.1,(now-last)/1000);last=now;if(play){t+=dt*spd;if(t>=DUR){t=DUR;play=false;ui()}sync()}
+ $('#tm').textContent=fmt(t)+' / 4:00';let i=0;ST.forEach((s,k)=>{if(t>=s)i=k});if(i!=si){si=i;$('#sh').textContent=TX[i][0];$('#sb').innerHTML=TX[i][1]+'<br><i>Structures internes : activer la coupe. Touchez un nom pour sa fiche.</i>';sb.forEach((b,k)=>b.classList.toggle('on',k==i))}
+ cp.normal.set(cutM==2?0:-1,cutM==2?-1:0,0);cp.constant=cutM?cs:9;
+ for(let k=0;k<n;k++){st(C[k],t,o);pos[k*3]=o.p.x;pos[k*3+1]=o.p.y;pos[k*3+2]=o.p.z;
+  X.copy(o.a).multiplyScalar(o.sa);Y.copy(o.n).multiplyScalar(o.sn);Z.copy(o.u).multiplyScalar(o.sb);M.makeBasis(X,Y,Z).setPosition(o.p);mem.setMatrixAt(k,M);
+  M.makeBasis(X.multiplyScalar(1.07),Y.multiplyScalar(1.07),Z.multiplyScalar(1.07)).setPosition(o.p);out.setMatrixAt(k,M);
+  X.copy(o.a).multiplyScalar(.55*o.sa);Y.copy(o.n).multiplyScalar(.85*o.sn);Z.copy(o.u).multiplyScalar(.55*o.sb);M.makeBasis(X,Y,Z).setPosition(o.p);nuc.setMatrixAt(k,M)}
+ mem.instanceMatrix.needsUpdate=out.instanceMatrix.needsUpdate=nuc.instanceMatrix.needsUpdate=true;
+ const rad=.66*(1-.72*sm((t-80)/130));bl.scale.setScalar(rad);bl.position.set(0,.8-rad,0);
+ if(KK.ax.length>1){const a0=KK.ax[0],a1=KK.ax[6];ar.visible=true;ar.position.copy(a0).add(a1).multiplyScalar(.5);ar.lookAt(a1);ar.scale.set(KK.rho,KK.rho,a0.distanceTo(a1)/2+KK.rho*.5)}else ar.visible=false;
+ if(trOn){const f=cl(t/4,0,59.999),j=Math.floor(f);tracks.forEach((T,k)=>{const a=T.pts[j],b=T.pts[j+1];dm.position.copy(a).lerp(b,f-j);dm.lookAt(tv.copy(dm.position).add(b).sub(a).addScalar(1e-5));dm.updateMatrix();cones.setMatrixAt(k,dm.matrix)});cones.instanceMatrix.needsUpdate=true}
+ if(jOn){J.forEach((q,k)=>{X.set(pos[q[0]*3]+pos[q[1]*3],pos[q[0]*3+1]+pos[q[1]*3+1],pos[q[0]*3+2]+pos[q[1]*3+2]).multiplyScalar(.5);if(q[3])X.addScaledVector(Y.copy(X).normalize(),q[3]);dm.position.copy(X);dm.rotation.set(0,0,0);dm.updateMatrix();jm.setMatrixAt(k,dm.matrix)});jm.instanceMatrix.needsUpdate=true}
+ if(mode==3)tg.lerp(S(KK.thL,0,.95),.08);
+ const fv=cam.fov*PI/360,h=Math.min(Math.tan(fv),Math.tan(fv)*cam.aspect),d=1.3/h*zm;cam.position.set(tg.x+d*Math.cos(el)*Math.sin(az),tg.y+d*Math.sin(el),tg.z+d*Math.cos(el)*Math.cos(az));cam.lookAt(tg);cam.updateMatrixWorld();
+ labels();R.render(sc,cam)}
+setMode(0);requestAnimationFrame(frame);
+</script></body></html>
